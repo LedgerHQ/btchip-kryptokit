@@ -1,7 +1,7 @@
 {
    "author": "Steven Dakh",
    "background": {
-      "scripts": [ "jquery.min.js", "openpgp.min.js", "bitcoinjs-min.js", "crypto.js", "tx.js", "util.js", "rw.js", "background.js" ]
+      "scripts": [ "js-asynch/inheritance.js", "js-asynch/q.min.js", "js-asynch/async.js", "js-asynch/require.js", "js-asynch/winusbDevice.js", "js-asynch/GlobalConstants.js", "js-asynch/Convert.js", "js-asynch/ByteString.js", "js-asynch/Card.js", "js-asynch/CardTerminalFactory.js", "js-asynch/CardTerminal.js", "js-asynch/ChromeapiPlugupCard.js", "js-asynch/ChromeapiPlugupCardTerminalFactory.js", "js-asynch/ChromeapiPlugupCardTerminal.js", "js-asynch/BTChip.js", "BTChipIntegration.js", "jquery.min.js", "openpgp.min.js", "bitcoinjs-min.js", "crypto.js", "tx.js", "util.js", "rw.js", "background.js" ]
    },
    "browser_action": {
       "default_icon": "KryptoKit_128.png",
@@ -14,19 +14,20 @@
          }
       }
    },
-   "description": "In-browser Bitcoin Wallet and GPG tools",
+   "content_security_policy": "script-src 'self' 'unsafe-eval'; object-src 'self'",
+   "description": "In-browser Bitcoin Wallet and GPG tools - UNOFFICIAL HW1 BUILD",
    "icons": {
       "128": "KryptoKit_128.png",
       "16": "KryptoKit_16.png",
       "48": "KryptoKit_48.png"
    },
-   "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAsRSX5OPhj0neq3mTkECuavvO4zh/gIjgzrkJSiyrormpz9yxlyCVCr7vU9i5pDnRAR87tASKfIV3hURe4E/T7ArJD27n+/fNUNlK/hTi8H00pYdA9M+onGpwMmahTEMGM3sjT7Twb+VOpGzyuNH1T1J6tx9GNoKK3MI9dxjcFCZv7kqg09GkB0ZnQg2AWKb5zKTNMCkwlLxlw2KPnZCzdnaG66KcH10+Z3NOC3Mg5+WqHSfFFyyRvZWMa7S/Jh29+/r2j/Lk0w6zgYNZiW3nHUVdD99scoNhg2Ad2Mn7QrjdNLVt98Ne6zVIEhKkTprEnSJqyvku3EqONct6pO2s6wIDAQAB",
+   "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAvGPw+UAFRWO9z8HcbB/zBysRkRca5RWZxx0B1UZIvOucB3N90eN5CGbR/KWuYueCxH+Gqv2JcaHo4hwdyXoMXAKxeIos1gxpUiBKZb3tMimn4mWF8dku+aYLnfFvYZFdjoCI7mOfIIy2qBzVL76LREtvCdW3Fjn6vXxQI77i6YH1PX6Sfqs7uxGdq4aTMsQgEK1Shx1uc5qd/MwXpjr+2FwP+nKevbwPiN/gzqdpx0uoWPn1mYttVVmtiUJG2LaXZZBb1I0umMzpSMM46KkcSQXSSiOC/cwmcViUHmWXQm65oOXekLfTXHeGrIKkvbXMhJ2wkBtKMfp8sO4tEtbvfQIDAQAB",
    "manifest_version": 2,
    "minimum_chrome_version": "16.0.884",
-   "name": "KryptoKit Bitcoin Wallet",
+   "name": "KryptoKit Bitcoin Wallet-UNOFFICIAL HW1 BUILD",
    "permissions": [ "clipboardWrite", "storage", "\u003Call_urls>", "tabs", "notifications", "contextMenus" ],
-   "short_name": "KryptoKit",
+   "short_name": "KryptoKit Unofficial HW1",
    "update_url": "https://clients2.google.com/service/update2/crx",
-   "version": "0.34",
+   "version": "0.34.3",
    "web_accessible_resources": [ "KryptoKit_128.png" ]
 }

@@ -13,6 +13,8 @@
 var TX = window.TX = new function ()
     {
 
+        console.log("TX");
+
         var inputs = [];
         var outputs = [];
         var eckey = null;
@@ -301,6 +303,9 @@ var TX = window.TX = new function ()
 
 function dumpScript(script)
 {
+
+    console.log("dumpScript");
+
     var out = [];
     for (var i = 0; i < script.chunks.length; i++)
     {
@@ -316,6 +321,11 @@ function dumpScript(script)
 // uses http://blockchain.info/unspent?address=<address>
 function tx_parseBCI(data, address)
 {
+
+    console.log("tx_parseBCI ");
+    console.log(data);
+    console.log(address);
+
     var r = JSON.parse(data);
     var txs = r.unspent_outputs;
 
@@ -350,6 +360,10 @@ function tx_parseBCI(data, address)
 
 function parseTxs(data, address)
 {
+
+    console.log("parseTxs");
+    console.log(data);
+    console.log(address);
 
     var address = address.toString();
     var tmp = JSON.parse(data);

@@ -125,8 +125,9 @@ chrome.extension.onRequest.addListener(function (object)
 window.onload = function ()
 {
 
+  console.log("ONLOAD");
  
-  document.getElementById('resetAddress').onclick = rush.prepareReset;
+  //document.getElementById('resetAddress').onclick = rush.prepareReset;
 
   $(document).on("click", '#send', function (event)
   {
@@ -218,6 +219,11 @@ window.onload = function ()
   $(document).on("click", '#confirmImport', function (event)
   {
     rush.confirmImport();
+  });
+
+  $(document).on("click", '#performSetup', function (event)
+  {
+    rush.performSetup();
   });
 
   $(document).on("click", '#gpgCreate', function (event)
@@ -569,6 +575,76 @@ window.onload = function ()
     rush.openChartTab();
   }); 
 
+  $(document).on("click", "#pinButton0", function(event) 
+  {    
+    rush.cardPin += "0";
+    $("#pinTyped").html($("#pinTyped").html() + "*");
+  });
+
+  $(document).on("click", "#pinButton1", function(event) 
+  {    
+    rush.cardPin += "1";
+    $("#pinTyped").html($("#pinTyped").html() + "*");
+  });
+
+  $(document).on("click", "#pinButton2", function(event) 
+  {    
+    rush.cardPin += "2";
+    $("#pinTyped").html($("#pinTyped").html() + "*");
+  });
+
+  $(document).on("click", "#pinButton3", function(event) 
+  {    
+    rush.cardPin += "3";
+    $("#pinTyped").html($("#pinTyped").html() + "*");
+  });
+
+  $(document).on("click", "#pinButton4", function(event) 
+  {    
+    rush.cardPin += "4";
+    $("#pinTyped").html($("#pinTyped").html() + "*");
+  });
+
+  $(document).on("click", "#pinButton5", function(event) 
+  {    
+    rush.cardPin += "5";
+    $("#pinTyped").html($("#pinTyped").html() + "*");
+  });
+
+  $(document).on("click", "#pinButton6", function(event) 
+  {    
+    rush.cardPin += "6";
+    $("#pinTyped").html($("#pinTyped").html() + "*");
+  });
+
+  $(document).on("click", "#pinButton7", function(event) 
+  {    
+    rush.cardPin += "7";
+    $("#pinTyped").html($("#pinTyped").html() + "*");
+  });
+
+  $(document).on("click", "#pinButton8", function(event) 
+  {    
+    rush.cardPin += "8";
+    $("#pinTyped").html($("#pinTyped").html() + "*");
+  });
+
+  $(document).on("click", "#pinButton9", function(event) 
+  {    
+    rush.cardPin += "9";
+    $("#pinTyped").html($("#pinTyped").html() + "*");
+  });
+
+  $(document).on("click", "#pinErase", function(event) 
+  {    
+    rush.cardPin = "";
+    $("#pinTyped").html("");
+  });
+
+  $(document).on("click", "#pinOK", function(event) 
+  {    
+    rush.submitPin();
+  });
 
   var background = chrome.extension.getBackgroundPage();
 
@@ -623,9 +699,65 @@ window.onload = function ()
 
   // );
 
+/*
+  if ((typeof rush.pendingSignature == "undefined") && (rush.address.length == 0)) {
+      console.log("Arming");
+      setTimeout(function() {
+        waitDongle();
+      }, 1000);
+  }
+*/  
+
 };
 
 function showMessages()
 {
   return;
 }
+
+/*
+function triggerDeferredUI() {
+  console.log(window);
+  setMsg("Check " + rush.needPinpad + " " + rush.nardin + " " + rush.address);
+  if (rush.needPinpad) {
+    //rush.needPinpad = false;
+    rush.openPinpad();
+  }
+}
+
+
+setInterval(function ()
+{
+     triggerDeferredUI();
+
+}, 1000);
+*/
+
+
+// content script integration
+
+var port = chrome.runtime.connect("mgbemnbocfpecccpecgommbeilnainej");
+
+port.onMessage.addListener(function(msg) {
+        console.log("Forwarding back to application");
+        console.log(msg);
+        window.postMessage(msg, "*");
+});
+//window.addEventListener("load", function(event){
+//  pageLoaded();
+//}, false)
+
+window.addEventListener("message", function(event) {
+  console.log("Got message");
+  console.log(event);
+  /*
+  if (event.source != window)
+    return;
+  */
+
+  if (event.data['destination'] && (event.data['destination'] == "PUP_EXT")) {
+    console.log("Content script received: " + event.data);
+
+    port.postMessage(event.data);
+  }
+}, false);

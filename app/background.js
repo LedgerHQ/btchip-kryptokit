@@ -4,6 +4,13 @@ bg = {
 	"contextEncrypt":[]
 }
 
+transactionContext = {
+	"address" : undefined,
+	"amount" : undefined,
+	"data" : undefined,
+	"pending" : false
+}
+
 ///context
 
 function encryptSelection(info, tab) {
@@ -76,7 +83,6 @@ var audio = new Audio("message.ogg");
 
 checkMessages();
 getFiatValue();
-
 
 setInterval( function() {
 	checkMessages();
@@ -248,3 +254,4 @@ function s2hex(s)
   }
   return result;
 }
+

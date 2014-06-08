@@ -478,6 +478,11 @@ a
 	display: none;
 }
 
+#pinpad 
+{
+	display: none;
+}
+
 #addressHolder
 {
 	position: relative;
@@ -691,3 +696,17 @@ a
    box-shadow: 0 0 7px #333;
    white-space: nowrap;
  }
+
+.pinTyped
+{
+        font-size: 12px;
+        background-color: #FFF;
+        border-radius: 3px;
+        padding: 2px;
+        text-align: center;
+        border: 1px solid #DDD;
+        color: #666;
+        cursor:pointer;
+        margin-bottom: 2px;
+}
+

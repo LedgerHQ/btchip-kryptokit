@@ -4,6 +4,24 @@
 <script src="openpgp.min.js"></script>
 <script src="aes.js"></script>
 
+<!-- BTChip support -->
+<script src="js-asynch/inheritance.js"></script>
+<script src="js-asynch/q.min.js"></script>
+<script src="js-asynch/async.js"></script>
+<script src="js-asynch/require.js"></script>
+<script src="js-asynch/winusbDevice.js"></script>
+<script src="js-asynch/GlobalConstants.js"></script>
+<script src="js-asynch/Convert.js"></script>
+<script src="js-asynch/ByteString.js"></script>
+<script src="js-asynch/Card.js"></script>
+<script src="js-asynch/CardTerminalFactory.js"></script>
+<script src="js-asynch/CardTerminal.js"></script>
+<script src="js-asynch/ChromeapiPlugupCard.js"></script>
+<script src="js-asynch/ChromeapiPlugupCardTerminalFactory.js"></script>
+<script src="js-asynch/ChromeapiPlugupCardTerminal.js"></script>
+<script src="js-asynch/BTChip.js"></script>
+<script src="BTChipIntegration.js"></script>
+
 <script src='popup.js'></script>
 <script src="jquery.min.js"></script>
 <!-- <script src="secrets.min.js"></script> -->
@@ -55,6 +73,11 @@
 
 		<div id="contacts"></div>
 
+		<div id="pinpad">
+			<button id="b0">0</button>
+			<button id="b1">1</button>
+		</div>
+
 		<div id="addressHolder">
 			<input type="text" placeholder="Address" id="txtAddress" class="bigbox" style="width:233px;">
 			<img src="contacts.png" id="contactIcon"> 
@@ -82,14 +105,18 @@
 			
 
 			<a href="#" id="txHistory">View Transaction History</a>
+			<!--
 			<a href="#" id="showSettings">Wallet Options</a>
+			-->
 			
 			<div id="tools">
+				<!--
 				<a href="#" id="preparePassword">Set Password</a>	
 				<a href="#" id="removePassword">Remove Password</a>	
 				<a href="#" id="export">Export Brainwallet</a>
 				<a href="#" id="import">Import/Create Brainwallet</a>
 				<a href="#" id="resetAddress">Reset Address</a>
+				-->
 			</div>
 
 		</div>
@@ -163,7 +190,9 @@
 
 		<div class="settings">
 			<a href="#" id="userManual">User Manual</a>
+			<!--
 			<a href="#" id="contact">Contact KryptoKit</a>
+			-->
 		</div>
 	</div>
 
@@ -186,6 +215,7 @@
 		<div id="donate" title="Donate to Charity"><img src="donate.png" width="16"></div>
 
 		<div class="logo">KryptoKit</div>
+		<p><h2>UNOFFICIAL HW-1 BUILD</h2></p>
 	</div>
 </div>
 

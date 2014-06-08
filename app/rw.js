@@ -1,3 +1,7 @@
+Q.longStackSupport = true;
+
+var DEFAULT_FIRMWARE = new ByteString("00010403", HEX);
+
 var entroMouse = window.entroMouse = {
 
     "generating": false,
@@ -92,12 +96,16 @@ var txType = 'txBCI';
 
 function txGetUnspent()
 {
+
+    console.log("txGetUnspent");
+    //alert("txGetUnspent");
+
     var addr = rush.address;
 
     var url = (txType == 'txBCI') ? 'https://blockchain.info/unspent?address=' + addr :
         'http://blockexplorer.com/q/mytransactions/' + addr;
 
-    //url = prompt('Press OK to download transaction history:', url);
+    //url = prompt('Press OK to download transaction history:', url);    
     if (url != null && url != "")
     {
         rush.txUnspent = '';
@@ -112,6 +120,10 @@ function txGetUnspent()
 
 function txSetUnspent(text)
 {
+
+    console.log("txSetUnspent " + text);
+    //alert("txSetUnspent " + text);
+
     var r = JSON.parse(text);
     txUnspent = JSON.stringify(r, null, 4);
     rush.txUnspent = txUnspent;
@@ -188,27 +200,40 @@ function txSent(text)
 
 function txSend()
 {
+    /*
     var txAddr = rush.address;
     var address = TX.getAddress();
 
     var r = '';
     if (txAddr != address)
         r += 'Warning! Source address does not match private key.\n\n';
+    */
 
+    var r = '';
     var tx = rush.txHex;
 
     url = 'https://blockchain.info/pushtx';
     postdata = 'tx=' + tx;
     //url = prompt(r + 'Send transaction:', url);
+
+
+    console.log("pushtx " + tx);
+    
     if (url != null && url != "")
     {
         ajax(url, txSent, postdata);
     }
+    
+    //txSent("Transaction Submitted");
+
     return false;
 }
 
 function txRebuild()
 {
+
+    console.log("txRebuild");
+
     var sec = rush.txSec;
     var addr = rush.address;
     var unspent = rush.txUnspent;
@@ -369,12 +394,169 @@ rush = window.rush = {
     "contacts": [],
     "directory": {},
 
+    "cardPin" : "",
+    card : undefined,
+    dongle : undefined,
+    waitForAddress : false,
+    waitForTransaction: false,
+    needPinpad: false,
+    cardError: false,
+    pendingSignature: undefined,
+    splitTransaction: undefined, // TODO store all
+
+    "dongleInsertedPre" : function(card)
+    {
+        console.log("got dongle");
+        this.card = card;
+        this.dongle = new BTChip(this.card);
+        this.cardError = false;
+        rush.dongle.getFirmwareVersion_async().then(function(result) {
+            console.log("Got firmware version " + result['firmwareVersion'].toString(HEX));
+            rush.dongle.setCompressedPublicKeys(result['compressedPublicKeys']);
+            rush.firmwareVersion = result['firmwareVersion'];
+            rush.dongleInserted();
+        }).fail(function(error) {
+            console.log("Assuming initial firmware version");
+            rush.firmwareVersion = DEFAULT_FIRMWARE;
+            rush.dongleInserted();
+        });        
+    },
+
+    "dongleInserted" : function() 
+    {        
+        if (typeof rush.pendingSignature != "undefined") {
+            console.log("Reconnecting waiting for PIN signature");
+            var pendingSignature = rush.pendingSignature;
+            rush.pendingSignature = undefined;
+            var result = pendingSignature['in'];            
+            console.log(pendingSignature);
+            console.log(result);
+            var inputs = [];
+            var keyReferences = [];
+            for (var i=0; i<result.length; i++) {
+                var splitTransaction = rush.dongle.splitTransaction(new ByteString(result[i]['rawtx'], HEX));
+                console.log(splitTransaction);
+                inputs.push([ splitTransaction, result[i]['index']]);
+                keyReferences.push(result[i]['internalAddress']);
+            }
+            setMsg("Finalizing signature, please wait");
+            rush.dongle.createPaymentTransaction_async(
+                inputs,
+                keyReferences,
+                0, 0, true,
+                new ByteString($('#txtAddress').val(), ASCII),
+                parseBitcoinValue($("#txtAmount").val()),
+                parseBitcoinValue("" + rush.txFee),
+                undefined, undefined,
+                new ByteString(rush.cardPin, ASCII),
+                pendingSignature['out']).then(function(result) {
+                    console.log("createPaymentTransaction result");
+                    rush.txHex = result.toString(HEX);
+                    console.log(rush.txHex);                    
+                    txSend();
+                }).fail(function(error) {
+                    console.log("createPaymentTransaction error");
+                    console.log(error);
+                    setMsg("Signing failed");
+                });            
+            return;
+        }        
+        setMsg("Please wait while recovering public keys");
+        try {
+        var dongle = this.dongle;
+        this.dongle.getWalletPublicKey_async(0, 0, false).then(function(result) {
+            $("#errorBox").hide();
+            console.log("public key");
+            console.log(result);
+            rush.address = result['bitcoinAddress'].toString(ASCII);
+            return dongle.getWalletPublicKey_async(0, 0, true).then(function(result) {
+                rush.addressChange = result['bitcoinAddress'].toString(ASCII);
+                rush.open();
+            });            
+        }).fail(function(error) {
+            console.log("public key fail");
+            console.log(error);
+            if (error.indexOf("6982") >= 0) {
+                setMsg("Dongle is locked - enter the PIN");
+                rush.openPinpad();
+            }
+            else
+            if (error.indexOf("6985") >= 0) {
+                var setupText = "Dongle is not set up";
+                setupText += "<br/><input type='password' id='pincode' placeholder='PIN code (4 digits)'>";
+                setupText += "<br/><input type='password' id='restoreSeed' placeholder='Optional seed to restore'>";
+                setupText += "<br/><input type='checkbox' id='qwertyKbd' checked>Qwerty</input><input type='checkbox' id='azertyKbd'>Azerty</input><br/>";
+                setupText += "<br/><button id='performSetup'>Setup</button>"
+                setMsg(setupText);                
+            }
+            else
+            if (error.indexOf("6faa") >= 0) {
+                setMsg("Dongle is locked - remove the dongle and retry");
+            }            
+            else {
+                rush.cardError = true;
+            }
+            console.log("Pinpad needed " + rush.needPinpad + " address " + rush.address);
+        });
+        }
+        catch(e) {
+            console.log("Get public key failed");
+            console.log(e);
+        }
+    },
+
+    "openPinpad" : function() 
+    {
+        var pinpadHtml = "<p><table border=0>";
+        var array = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9];
+        for (var i = array.length - 1 ; i > 0 ; i--) {
+            var j = Math.floor(Math.random() * (i + 1));
+            var temp = array[i];
+            array[i] = array[j];
+            array[j] = temp;
+        }
+        for (var i=0; i<10; i+=5) {
+            pinpadHtml += "<tr>";
+            pinpadHtml += "<td><button id='pinButton" + array[i] + "'>" + array[i] + "</button></td>";
+            pinpadHtml += "<td><button id='pinButton" + array[i + 1] + "'>" + array[i + 1] + "</button></td>";
+            pinpadHtml += "<td><button id='pinButton" + array[i + 2] + "'>" + array[i + 2] + "</button></td>";
+            pinpadHtml += "<td><button id='pinButton" + array[i + 3] + "'>" + array[i + 3] + "</button></td>";
+            pinpadHtml += "<td><button id='pinButton" + array[i + 4] + "'>" + array[i + 4] + "</button></td>";
+            pinpadHtml += "</tr>";      
+        }
+        pinpadHtml += "</table></p>";
+        pinpadHtml += "<div id='pinTyped'></div>";
+        pinpadHtml += "<button id='pinOK'>OK</button>";
+        pinpadHtml += "<button id='pinErase'>Erase</button>";
+        $("#pinpad").html(pinpadHtml);
+        $("#pinpad").show();
+        $("#pinTyped").html("");
+        this.cardPin = "";   
+    },
+
+    "submitPin" : function() {
+        $("#pinpad").hide();
+        if (typeof rush.pendingSignature != "undefined") {
+            waitDongle();
+        }
+        else {
+            this.dongle.verifyPin_async(new ByteString(this.cardPin, ASCII)).then(function(result) {
+                setMsg("PIN validated");
+                rush.dongleInsertedPre(rush.card);
+            }).fail(function(error) {
+                console.log(error);
+                setMsg("Invalid PIN - remove the dongle and retry");
+            });
+            this.cardPin = "";
+        }
+    },
+
     "open": function ()
     {
 
-        var manifest = chrome.runtime.getManifest();
+        console.log("OPEN");
 
-        $(".logo").html("KryptoKit v" + manifest.version);
+        var manifest = chrome.runtime.getManifest();
 
         $("#addressTitle").show();
         $("#balanceBox").show();
@@ -419,6 +601,10 @@ rush = window.rush = {
 
         socket.onmessage = function (msg)
         {
+
+            console.log("inv callback");
+            console.log(msg);
+
             setTimeout(function ()
             {
                 rush.getBalance();
@@ -433,8 +619,6 @@ rush = window.rush = {
         //         rush.openGpgTab();
         //     }, 200);
         // }
-
-
     },
 
     "backup": function ()
@@ -606,6 +790,7 @@ rush = window.rush = {
             return;
         }
 
+        /*
         if (this.encrypted)
         {
 
@@ -628,30 +813,112 @@ rush = window.rush = {
         else
         {
             var passcode = this.passcode;
+
+            passcode = "DPrMEjiTwD73hAxdqcSAoWo2hMo4FNv4tFjtJu9cW0PXv9PTNu";
         }
 
+        console.log("blah1");
         var bytes = Bitcoin.Crypto.SHA256(passcode,
         {
             asBytes: true
         });
+        console.log("blah2");
 
         var btcKey = new Bitcoin.Key(bytes);
+        console.log("blah3");
 
         this.txSec = btcKey.export("base58");
+        console.log("blah4");
         this.txAmount = parseFloat($("#txtAmount").val());
         this.txAmount = this.txAmount.toFixed(8);
         this.txDest = $('#txtAddress').val();
+        console.log("blah5");
         txGetUnspent();
+        console.log("blah6");
+        */
 
         $("#send").attr("disabled", "disabled");
         $("#send").html("Sending...");
+
+        setMsg("Preparing signature, please wait");
+
+  // TODO : compute full amount on all transactions + all sub addresses
+  // We also risk having less funds than the advertised available funds if waiting for more 
+  // confirmations - the good way to solve it is to use the same method for both
+
+  getUnspentForDongle(rush.address, [0, 0, false]).then(function(result) {    
+    return getUnspentForDongle(rush.addressChange, [0, 0, true]).then(function(result2) {
+        for (var i=0; i<result2["unspent"].length; i++) {
+            result["unspent"].push(result2["unspent"][i])
+        }
+        // Get the transactions we need
+        var transactionAmount = parseBitcoinValue($("#txtAmount").val());
+        var transactionFees = parseBitcoinValue("" + rush.txFee);
+        var transactionTotal = new BigInteger(transactionAmount.toString(HEX), 16).add(new BigInteger(transactionFees.toString(HEX), 16));
+        result = pickUnspent(result["unspent"], transactionTotal);
+        rush.pendingSignature = {};
+        rush.pendingSignature['in'] = result;
+        console.log("getUnspent result");
+        console.log(result);
+        var inputs = [];
+        var keyReferences = [];
+        for (var i=0; i<result.length; i++) {
+            var splitTransaction = rush.dongle.splitTransaction(new ByteString(result[i]['rawtx'], HEX));
+            console.log(splitTransaction);
+            inputs.push([ splitTransaction, result[i]['index']]);
+            keyReferences.push(result[i]['internalAddress']);
+        }
+        rush.dongle.createPaymentTransaction_async(
+            inputs,
+            keyReferences,
+            0, 0, true,
+            new ByteString($('#txtAddress').val(), ASCII),
+            transactionAmount,
+            transactionFees).then(function(result) {
+                console.log("createPaymentTransaction result");
+                console.log(result);
+                rush.pendingSignature['out'] = result;
+                setMsg("Check the second factor, power cycle, reopen then enter the confirmation PIN");
+                var pendingTransaction = {};
+                pendingTransaction['pendingSignature'] = rush.pendingSignature;
+                // Flatten
+                rush.pendingSignature.out.scriptData = rush.pendingSignature.out.scriptData.toString(HEX);
+                var trustedInputs = [];
+                for (var i=0; i<rush.pendingSignature.out.trustedInputs.length; i++) {
+                    trustedInputs.push(rush.pendingSignature.out.trustedInputs[i].toString(HEX));
+                }                        
+                rush.pendingSignature.out.trustedInputs = trustedInputs;
+                var publicKeys = [];
+                for (var i=0; i<rush.pendingSignature.out.publicKeys.length; i++) {
+                    publicKeys.push(rush.pendingSignature.out.publicKeys[i].toString(HEX));
+                }             
+                rush.pendingSignature.out.publicKeys = publicKeys;                                   
+                pendingTransaction['address'] = $('#txtAddress').val();
+                pendingTransaction['amount'] = $('#txtAmount').val();
+                chrome.storage.local.set( {
+                    'pendingTransaction' : pendingTransaction
+                }, function(data) {
+                });
+            }).fail(function(error) {
+                console.log("createPaymentTransaction error");
+                console.log(error);
+                setMsg("Signing failed");
+            });
+        });
+  }).fail(function(error) {
+    console.log("getUnspent error");
+    console.log(error);
+    setMsg("Signing failed");
+  });
+
 
     },
 
 
     "getBalance": function ()
     {
-        var url = "https://blockchain.info/q/addressbalance/" + this.address;
+
+        var url = "https://blockchain.info/q/addressbalance/" + this.address + "?confirmations=5";
 
         $.ajax(
         {
@@ -663,22 +930,40 @@ rush = window.rush = {
 
         }).done(function (msg)
         {
-            rush.balance = msg / 100000000;
-            var spendable = rush.balance - rush.txFee;
 
-            if (spendable < 0)
-                spendable = 0;
+            console.log("getBalance Main " + rush.address);
+            console.log(msg);            
 
-            $("#balance").html("฿" + rush.balance.toFixed(8));
-            $("#spendable").html("฿" + spendable.toFixed(8));
+            url = "https://blockchain.info/q/addressbalance/" + rush.addressChange + "?confirmations=5";
 
-            rush.getFiatValue();
+            $.ajax(
+            {
+                type: "GET",
+                url: url,
+                async: true,
+                data:
+                {}
 
+            }).done(function (msg2)
+            {
+
+                console.log("getBalance Change " + rush.addressChange);
+                console.log(msg2);
+
+                rush.balance = (parseInt(msg) + parseInt(msg2)) / 100000000;
+                var spendable = rush.balance - rush.txFee;
+
+                if (spendable < 0)
+                    spendable = 0;
+
+                $("#balance").html("฿" + rush.balance.toFixed(8));
+                $("#spendable").html("฿" + spendable.toFixed(8));
+
+                rush.getFiatValue();
+            });
         });
-
-
-
     },
+
     "getFiatValue": function ()
     {
 
@@ -1177,9 +1462,84 @@ rush = window.rush = {
         });
 
         setMsg("Brainwallet imported succesfully!");
-
-
-
+    },
+    "performSetup": function () 
+    {
+        var pincode = $("#pincode").val();
+        var restoreSeed = $("#restoreSeed").val();
+        var qwerty = $("#qwertyKbd").is(':checked');
+        var azerty = $("#azertyKbd").is(':checked');
+        console.log("Qwerty " + qwerty + " Azerty " + azerty);
+        if (pincode.length != 4) {
+            setMsg("Invalid PIN code");
+            return;
+        }
+        if ((restoreSeed.length != 0) && (restoreSeed.length != 64)) {
+            setMsg("Invalid seed");
+            return;
+        }
+        if (restoreSeed.length != 0) {            
+            if (new ByteString(restoreSeed, HEX).length != 32) {
+                setMsg("Invalid seed");
+                return;                
+            }
+        }
+        setMsg("Setup in progress ... please wait");
+        var keymaps = [];
+        if (rush.firmwareVersion.equals(DEFAULT_FIRMWARE)) {
+            if (qwerty) {
+                keymaps.push(BTChip.QWERTY_KEYMAP);
+            }
+            if (azerty) {
+                keymaps.push(BTChip.AZERTY_KEYMAP);   
+            }
+            rush.dongle.setup_async(
+                BTChip.MODE_WALLET | BTChip.FLAG_RFC6979,
+                BTChip.VERSION_BITCOIN_MAINNET,
+                BTChip.VERSION_BITCOIN_P2SH_MAINNET,
+                new ByteString(pincode, ASCII),
+                undefined,
+                keymaps,
+                (restoreSeed.length != 0),
+                (restoreSeed.length != 0 ? new ByteString(restoreSeed, HEX) : undefined)).then(function(result) {                
+                    setMsg("HD Wallet seed to backup, then close & reopen extension : " + result['bip32seed'].toString(HEX));
+                }).fail(function(error) {
+                    console.log("setup error");
+                    console.log(error);
+                });
+            }
+            else {
+            if (qwerty && azerty) {
+                setMsg("Please select a single keyboard option");
+                return;
+            }
+            if (qwerty) {
+                keymaps = BTChip.QWERTY_KEYMAP_NEW;
+            }
+            if (azerty) {
+                keymaps = BTChip.AZERTY_KEYMAP_NEW;   
+            }
+            rush.dongle.setupNew_async(
+                BTChip.MODE_WALLET,
+                BTChip.FEATURE_DETERMINISTIC_SIGNATURE,
+                BTChip.VERSION_BITCOIN_MAINNET,
+                BTChip.VERSION_BITCOIN_P2SH_MAINNET,
+                new ByteString(pincode, ASCII),
+                undefined,
+                keymaps,
+                (restoreSeed.length != 0),
+                (restoreSeed.length != 0 ? new ByteString(restoreSeed, HEX) : undefined)).then(function(result) {                
+                    if (restoreSeed.length == 0) {
+                        setMsg("Plug the dongle into a secure host to read the generated seed, then reopen the extension");
+                    }
+                    else {
+                        setMsg("Seed restored, please reopen the extension");
+                    }
+                }).fail(function(error) {
+                    console.log("setup error");
+                    console.log(error);
+                });                
+            }
     },
     "gpgCreate": function ()
     {
@@ -2603,10 +2963,37 @@ function popupMsg(txt)
 $(document).ready(function ()
 {
 
+    console.log("ready");
+
+    var manifest = chrome.runtime.getManifest();
+    $(".logo").html("KryptoKit v" + manifest.version + "-hw1");
+
+
     var code = window.location.hash;
 
-    chrome.storage.local.get(["code", "address", "password", "encrypted", "gpgPublic", "gpgPrivate", "gpgKeys", "msgCount", "gpgMessages", "gpgPassword", "msgBuffer", "price", "lastTab", "currency", "newsType", "contacts"], function (data)
+    chrome.storage.local.get(["pendingTransaction", "code", "address", "password", "encrypted", "gpgPublic", "gpgPrivate", "gpgKeys", "msgCount", "gpgMessages", "gpgPassword", "msgBuffer", "price", "lastTab", "currency", "newsType", "contacts"], function (data)
     {
+
+        if (data.pendingTransaction != undefined) {
+            console.log("Has pending transaction 1");
+            console.log(data.pendingTransaction);
+            rush.pendingSignature = data.pendingTransaction['pendingSignature'];
+            $("#txtAddress").val(data.pendingTransaction['address']);
+            $("#txtAmount").val(data.pendingTransaction['amount']);       
+            // Unflatten
+            rush.pendingSignature.out.scriptData = new ByteString(rush.pendingSignature.out.scriptData, HEX);
+            var trustedInputs = [];
+            for (var i=0; i<rush.pendingSignature.out.trustedInputs.length; i++) {
+                trustedInputs.push(new ByteString(rush.pendingSignature.out.trustedInputs[i], HEX));
+            }                        
+            rush.pendingSignature.out.trustedInputs = trustedInputs;
+            var publicKeys = [];
+            for (var i=0; i<rush.pendingSignature.out.publicKeys.length; i++) {
+                publicKeys.push(new ByteString(rush.pendingSignature.out.publicKeys[i], HEX));
+            }                        
+            rush.pendingSignature.out.publicKeys = publicKeys;            
+            chrome.storage.local.remove(["pendingTransaction"], function(data) {});            
+        }
 
         if ( data.msgCount != undefined)
         {
@@ -2694,6 +3081,11 @@ $(document).ready(function ()
             rush.gpgPrivate = data.gpgPrivate;
         }
 
+        if (data.pendingTransaction != undefined) {        
+            console.log("Has pending transaction 2");
+            rush.openPinpad();
+        }        
+
         if (code)
         {
             rush.passcode = code;
@@ -2702,7 +3094,38 @@ $(document).ready(function ()
         }
         else
         {
-            entroMouse.start();
+            //entroMouse.start();
+            console.log("No key set ... and not generating one");
+
+            rush.address = "";
+
+            setMsg("No wallet set - please connect a dongle");
+
+/*
+                setTimeout( function()
+                    {
+                        waitDongle()
+                    }, 2000
+                );
+*/                
+            
+            //setMsg("No key known - please connect a dongle");            
+
+        if (typeof rush.pendingSignature != "undefined") {
+            setMsg("Check the second factor then enter the confirmation PIN");
+            $("#send").attr("disabled", "disabled");
+            $("#send").html("Sending...");            
+        }
+
+
+  if ((typeof rush.pendingSignature == "undefined") && (rush.address.length == 0)) {
+      console.log("Arming");
+      setTimeout(function() {
+        waitDongle();
+      }, 1000);
+  }
+
+
         }
 
     });
@@ -2758,6 +3181,7 @@ function playBeep()
 }
 
 function ajax(url,success,data) {
+    console.log("ajax " + url);
     var xhr = new XMLHttpRequest();
     xhr.onreadystatechange = function () {
         if (xhr.readyState == 4) {
@@ -2787,4 +3211,22 @@ function tx_fetch(url, onSuccess, onError, postdata)
             // console.log("error!");
         }
     });
+}
+
+function waitDongle() {
+    try {
+    getCard().then(function(result) {
+        if (typeof result != "undefined") {
+            rush.dongleInsertedPre(result);
+        }
+        else {
+          setTimeout(function() {
+            waitDongle();
+            }, 1000);
+        }
+    });
+    }
+    catch(e) {
+        alert(e);
+    } 
 }
