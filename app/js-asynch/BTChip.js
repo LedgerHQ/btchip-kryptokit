@@ -30,10 +30,15 @@ var BTChip = Class.create({
 			throw "Invalid card";
 		}
 		this.card = card;
+		this.deprecatedFirmwareVersion = false;
 	},
 
 	setCompressedPublicKeys : function(compressedPublicKeys) {
 		this.compressedPublicKeys = compressedPublicKeys;
+	},
+
+	setDeprecatedFirmwareVersion : function() {
+		this.deprecatedFirmwareVersion = true;
 	},
 
 	_almostConvertU32 : function(number) {
@@ -317,7 +322,14 @@ var BTChip = Class.create({
 		data = data.concat(outputAddress);
 		data = data.concat(amount).concat(fees);
 		data = data.concat(this._almostConvertU32(account).concat(this._almostConvertU32(chainIndex)));
-		return this.card.sendApdu_async(0xe0, 0x46, outputType, (internalChain ? 0x02 : 0x01), data, [0x9000]).then(function (outData) {;
+		var p2;
+		if (this.deprecatedFirmwareVersion) {
+			p2 = 0x00;
+		}
+		else {
+			p2 = (internalChain ? BTChip.INTERNAL_CHAIN : BTChip.EXTERNAL_CHAIN);
+		}
+		return this.card.sendApdu_async(0xe0, 0x46, outputType, p2, data, [0x9000]).then(function (outData) {
                   var result = {};
                   var scriptDataLength = outData.byteAt(0);
                   result['scriptData'] = outData.bytes(1, scriptDataLength);
@@ -454,7 +466,7 @@ var BTChip = Class.create({
                                       // return current state
                                       deferred.resolve(resumeData);
                               }
-                              currentObject.signTransaction_async(associatedKeysets[i][0], associatedKeysets[i][1], associatedKeysets[i][2], authorization).then(function(result) {;
+                              currentObject.signTransaction_async(associatedKeysets[i][0], associatedKeysets[i][1], associatedKeysets[i][2], authorization, lockTime, sigHashType).then(function(result) {
                                 signatures.push(result);
                                 targetTransaction['inputs'][i]['script'] = new ByteString("", HEX);			
                                 if (firstRun) {

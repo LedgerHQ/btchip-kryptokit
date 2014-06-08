@@ -60,7 +60,7 @@ function getUnspentForDongle(address, internalAddress, minConfirm) {
 	  resultData['address'] = address;
 	  resultData['unspent'] = [];
 	  if (typeof minConfirm == "undefined") {
-	  	minConfirm = 5;
+	  	minConfirm = 2;
 	  }
       // get unspent output and balance at once
       // http://blockchain.info/unspent?active=<address>

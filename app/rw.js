@@ -411,14 +411,18 @@ rush = window.rush = {
         this.dongle = new BTChip(this.card);
         this.cardError = false;
         rush.dongle.getFirmwareVersion_async().then(function(result) {
-            console.log("Got firmware version " + result['firmwareVersion'].toString(HEX));
+            var firmwareVersion = result['firmwareVersion'];
+            console.log("Got firmware version " + firmwareVersion.toString(HEX));
             rush.dongle.setCompressedPublicKeys(result['compressedPublicKeys']);
-            rush.firmwareVersion = result['firmwareVersion'];
+            rush.firmwareVersion = firmwareVersion;
             rush.dongleInserted();
+            $(".cardFirmware").html("dongle fw " + firmwareVersion.byteAt(1) + "." + firmwareVersion.byteAt(2) + "." + firmwareVersion.byteAt(3));
         }).fail(function(error) {
             console.log("Assuming initial firmware version");
+            rush.dongle.setDeprecatedFirmwareVersion();
             rush.firmwareVersion = DEFAULT_FIRMWARE;
             rush.dongleInserted();
+            $(".cardFirmware").html("dongle fw " + DEFAULT_FIRMWARE.byteAt(1) + "." + DEFAULT_FIRMWARE.byteAt(2) + "." + DEFAULT_FIRMWARE.byteAt(3));            
         });        
     },
 
@@ -918,7 +922,7 @@ rush = window.rush = {
     "getBalance": function ()
     {
 
-        var url = "https://blockchain.info/q/addressbalance/" + this.address + "?confirmations=5";
+        var url = "https://blockchain.info/q/addressbalance/" + rush.address + "?confirmations=2";
 
         $.ajax(
         {
@@ -931,10 +935,7 @@ rush = window.rush = {
         }).done(function (msg)
         {
 
-            console.log("getBalance Main " + rush.address);
-            console.log(msg);            
-
-            url = "https://blockchain.info/q/addressbalance/" + rush.addressChange + "?confirmations=5";
+            url = "https://blockchain.info/q/addressbalance/" + rush.address;
 
             $.ajax(
             {
@@ -943,23 +944,57 @@ rush = window.rush = {
                 async: true,
                 data:
                 {}
-
-            }).done(function (msg2)
+            }).done(function (msgImmediate)
             {
 
-                console.log("getBalance Change " + rush.addressChange);
-                console.log(msg2);
+                console.log("getBalance Main " + rush.address);
+                console.log(msg + " immediate " + msgImmediate);            
 
-                rush.balance = (parseInt(msg) + parseInt(msg2)) / 100000000;
-                var spendable = rush.balance - rush.txFee;
+                url = "https://blockchain.info/q/addressbalance/" + rush.addressChange + "?confirmations=2";
 
-                if (spendable < 0)
-                    spendable = 0;
+                $.ajax(
+                {
+                    type: "GET",
+                    url: url,
+                    async: true,
+                    data:
+                    {}
+                }).done(function (msg2)
+                {
 
-                $("#balance").html("฿" + rush.balance.toFixed(8));
-                $("#spendable").html("฿" + spendable.toFixed(8));
+                    url = "https://blockchain.info/q/addressbalance/" + rush.addressChange;
 
-                rush.getFiatValue();
+                    $.ajax(
+                    {
+                        type: "GET",
+                        url: url,
+                        async: true,
+                        data:
+                        {}
+                    }).done(function (msg2Immediate)
+                    {
+                        console.log("getBalance Change " + rush.addressChange);
+                        console.log(msg2 + " immediate " + msg2Immediate);
+
+                        if (msgImmediate < msg) {
+                            msg = msgImmediate;
+                        }
+                        if (msg2Immediate < msg2) {
+                            msg2 = msg2Immediate;
+                        }
+
+                        rush.balance = (parseInt(msg) + parseInt(msg2)) / 100000000;
+                        var spendable = rush.balance - rush.txFee;
+
+                        if (spendable < 0)
+                            spendable = 0;
+
+                        $("#balance").html("฿" + rush.balance.toFixed(8));
+                        $("#spendable").html("฿" + spendable.toFixed(8));
+
+                        rush.getFiatValue();
+                    });
+                });
             });
         });
     },

@@ -320,6 +320,11 @@ input
 	float:right;
 }
 
+#cardFirmware
+{
+	float:right;
+}
+
 #help, #settings, #donate, #directoryLink, #chartsLink
 {
 	float: left;
