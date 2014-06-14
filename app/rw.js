@@ -886,6 +886,12 @@ rush = window.rush = {
                 var pendingTransaction = {};
                 pendingTransaction['pendingSignature'] = rush.pendingSignature;
                 // Flatten
+                for (var i=0; i<rush.pendingSignature.in.length; i++) { // Chrome issue workaround ?
+                    var address = { '0' : rush.pendingSignature.in[i].internalAddress[0],
+                                    '1' : rush.pendingSignature.in[i].internalAddress[1],
+                                    '2' : rush.pendingSignature.in[i].internalAddress[2] }
+                    rush.pendingSignature.in[i].internalAddress = address;
+                }
                 rush.pendingSignature.out.scriptData = rush.pendingSignature.out.scriptData.toString(HEX);
                 var trustedInputs = [];
                 for (var i=0; i<rush.pendingSignature.out.trustedInputs.length; i++) {
@@ -3016,6 +3022,10 @@ $(document).ready(function ()
             $("#txtAddress").val(data.pendingTransaction['address']);
             $("#txtAmount").val(data.pendingTransaction['amount']);       
             // Unflatten
+            for (var i=0; i<rush.pendingSignature.in.length; i++) { // Chrome issue workaround ? 
+                var address = rush.pendingSignature.in[i].internalAddress;
+                rush.pendingSignature.in[i].internalAddress = [ address['0'], address['1'], address['2'] ];
+            }
             rush.pendingSignature.out.scriptData = new ByteString(rush.pendingSignature.out.scriptData, HEX);
             var trustedInputs = [];
             for (var i=0; i<rush.pendingSignature.out.trustedInputs.length; i++) {
