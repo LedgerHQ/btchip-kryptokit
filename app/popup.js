@@ -646,6 +646,14 @@ window.onload = function ()
     rush.submitPin();
   });
 
+  $(document).on("click", "#qwertyKbd", function(event) {
+     $("#azertyKbd").attr('checked', false);
+  });
+
+  $(document).on("click", "#azertyKbd", function(event) {
+     $("#qwertyKbd").attr('checked', false);
+  });
+
   var background = chrome.extension.getBackgroundPage();
 
   addEventListener("unload", function (event)
