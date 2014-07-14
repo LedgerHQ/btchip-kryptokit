@@ -199,6 +199,25 @@ var BTChip = Class.create({
                 });
 	},
 
+	signMessagePrepare_async : function(account, chainIndex, internalChain, message) {
+		var data = this._almostConvertU32(account).concat(this._almostConvertU32(chainIndex));
+		data = data.concat(new ByteString(Convert.toHexByte((internalChain ? BTChip.INTERNAL_CHAIN : BTChip.EXTERNAL_CHAIN)), HEX));
+		data = data.concat(new ByteString(Convert.toHexByte(message.length), HEX));
+		data = data.concat(message);
+		return this.card.sendApdu_async(0xe0, 0x4e, 0x00, 0x00, data);
+	},
+
+	signMessageSign_async : function(pin) {
+		var data;
+		if (typeof pin != "undefined") {
+			data = pin;
+		}
+		else {
+			data = new ByteString("", HEX);
+		}
+		return this.card.sendApdu_async(0xe0, 0x4e, 0x80, 0x00, data);
+	},
+
 	ecdsaSignImmediate_async : function(privateKeyEncryptionVersion, encryptedPrivateKey, hash) {
 		var data = "";
 		data = data + Convert.toHexByte(privateKeyEncryptionVersion);
@@ -236,23 +255,53 @@ var BTChip = Class.create({
 	getTrustedInput_async: function(indexLookup, transaction) {
           var currentObject = this;
           var deferred = Q.defer();
-          var data = transaction['version'].concat(currentObject.createVarint(transaction['inputs'].length));
-          currentObject.getTrustedInputRaw_async(true, indexLookup, data).then(function (result) {
+          var processScriptBlocks = function(script) {          	
+          	  var internalPromise = Q.defer();
+          	  var scriptBlocks = [];
+          	  var offset = 0;
+          	  while (offset != script.length) {
+          	  	var blockSize = (script.length - offset > 255 ? 255 : script.length - offset);
+          	  	scriptBlocks.push(script.bytes(offset, blockSize));
+          	  	offset += blockSize;
+          	  }
+          	  async.eachSeries(
+          	  	scriptBlocks,
+          	  	function(scriptBlock, finishedCallback) {
+	                currentObject.getTrustedInputRaw_async(false, undefined, scriptBlock).then(function (result) {
+    	              finishedCallback();
+        	        }).fail(function (err) { internalPromise.reject(err); });
+          	  	},
+          	  	function(finished) {          	  		
+          	  		internalPromise.resolve();
+          	  	}
+          	  );
+          	  return internalPromise.promise;
+          }
+          var processInputs = function() {
             async.eachSeries(
               transaction['inputs'], 
               function (input, finishedCallback) {
-                data = input['prevout'].concat(currentObject.createVarint(input['script'].length));
-                data = data.concat(input['script']).concat(input['sequence']);
+                data = input['prevout'].concat(currentObject.createVarint(input['script'].length));                
                 currentObject.getTrustedInputRaw_async(false, undefined, data).then(function (result) {
                   // iteration (eachSeries) ended
                   // TODO notify progress
                   // deferred.notify("input");
-                  finishedCallback();
+                  processScriptBlocks(input['script']).then(function(result) {
+                	currentObject.getTrustedInputRaw_async(false, undefined, input['sequence']).then(function (result) {  	
+                		finishedCallback();
+                	}).fail(function(err) { deferred.reject(err); });
+                  }).fail(function(err) { deferred.reject(err); });
                 }).fail(function (err) { deferred.reject(err); });
               },
               function(finished) {
                 data = currentObject.createVarint(transaction['outputs'].length);
                 currentObject.getTrustedInputRaw_async(false, undefined, data).then(function (result) {
+                	processOutputs();
+                }).fail(function (err) { deferred.reject(err); });
+              }
+            );          	
+          }
+          var processOutputs = function() {
                   async.eachSeries(
                     transaction['outputs'],
                     function(output, finishedCallback) {
@@ -271,10 +320,11 @@ var BTChip = Class.create({
                         deferred.resolve(result);
                       }).fail(function (err) { deferred.reject(err); });
                     }
-                  );
-                }).fail(function (err) { deferred.reject(err); });
-              }
-            );
+                  );          	
+          }
+          var data = transaction['version'].concat(currentObject.createVarint(transaction['inputs'].length));
+          currentObject.getTrustedInputRaw_async(true, indexLookup, data).then(function (result) {
+          	 processInputs();
           }).fail(function (err) { deferred.reject(err); });
           // return the promise to be resolve when the trusted input has been processed completely
           return deferred.promise;
