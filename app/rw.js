@@ -779,7 +779,7 @@ rush = window.rush = {
             var res = Bitcoin.base58.checkDecode(address);
             var version = res.version
             var payload = res.slice(0);
-            if (version == 0)
+            if ((version == 0) || (version == 5))
                 return true;
         }
         catch (err)
