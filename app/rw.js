@@ -412,6 +412,10 @@ rush = window.rush = {
         this.cardError = false;
         rush.dongle.getFirmwareVersion_async().then(function(result) {
             var firmwareVersion = result['firmwareVersion'];
+            if ((firmwareVersion.byteAt(1) == 0x01) && (firmwareVersion.byteAt(2) == 0x04) && (firmwareVersion.byteAt(3) < 7)) {
+                console.log("Using old BIP32 derivation");
+                rush.dongle.setDeprecatedBIP32Derivation();
+            }            
             console.log("Got firmware version " + firmwareVersion.toString(HEX));
             rush.dongle.setCompressedPublicKeys(result['compressedPublicKeys']);
             rush.firmwareVersion = firmwareVersion;
@@ -447,7 +451,7 @@ rush = window.rush = {
             rush.dongle.createPaymentTransaction_async(
                 inputs,
                 keyReferences,
-                0, 0, true,
+                "0'/1/0",
                 new ByteString($('#txtAddress').val(), ASCII),
                 parseBitcoinValue($("#txtAmount").val()),
                 parseBitcoinValue("" + rush.txFee),
@@ -468,12 +472,12 @@ rush = window.rush = {
         setMsg("Please wait while recovering public keys");
         try {
         var dongle = this.dongle;
-        this.dongle.getWalletPublicKey_async(0, 0, false).then(function(result) {
+        this.dongle.getWalletPublicKey_async("0'/0/0").then(function(result) {
             $("#errorBox").hide();
             console.log("public key");
             console.log(result);
             rush.address = result['bitcoinAddress'].toString(ASCII);
-            return dongle.getWalletPublicKey_async(0, 0, true).then(function(result) {
+            return dongle.getWalletPublicKey_async("0'/1/0").then(function(result) {
                 rush.addressChange = result['bitcoinAddress'].toString(ASCII);
                 rush.open();
             });            
@@ -506,6 +510,7 @@ rush = window.rush = {
         catch(e) {
             console.log("Get public key failed");
             console.log(e);
+            setMsg("Get public key - internal error");
         }
     },
 
@@ -850,8 +855,8 @@ rush = window.rush = {
   // We also risk having less funds than the advertised available funds if waiting for more 
   // confirmations - the good way to solve it is to use the same method for both
 
-  getUnspentForDongle(rush.address, [0, 0, false]).then(function(result) {    
-    return getUnspentForDongle(rush.addressChange, [0, 0, true]).then(function(result2) {
+  getUnspentForDongle(rush.address, "0'/0/0").then(function(result) {    
+    return getUnspentForDongle(rush.addressChange, "0'/1/0").then(function(result2) {
         for (var i=0; i<result2["unspent"].length; i++) {
             result["unspent"].push(result2["unspent"][i])
         }
@@ -875,7 +880,7 @@ rush = window.rush = {
         rush.dongle.createPaymentTransaction_async(
             inputs,
             keyReferences,
-            0, 0, true,
+            "0'/1/0",
             new ByteString($('#txtAddress').val(), ASCII),
             transactionAmount,
             transactionFees).then(function(result) {
@@ -886,12 +891,6 @@ rush = window.rush = {
                 var pendingTransaction = {};
                 pendingTransaction['pendingSignature'] = rush.pendingSignature;
                 // Flatten
-                for (var i=0; i<rush.pendingSignature.in.length; i++) { // Chrome issue workaround ?
-                    var address = { '0' : rush.pendingSignature.in[i].internalAddress[0],
-                                    '1' : rush.pendingSignature.in[i].internalAddress[1],
-                                    '2' : rush.pendingSignature.in[i].internalAddress[2] }
-                    rush.pendingSignature.in[i].internalAddress = address;
-                }
                 rush.pendingSignature.out.scriptData = rush.pendingSignature.out.scriptData.toString(HEX);
                 var trustedInputs = [];
                 for (var i=0; i<rush.pendingSignature.out.trustedInputs.length; i++) {
@@ -3022,10 +3021,6 @@ $(document).ready(function ()
             $("#txtAddress").val(data.pendingTransaction['address']);
             $("#txtAmount").val(data.pendingTransaction['amount']);       
             // Unflatten
-            for (var i=0; i<rush.pendingSignature.in.length; i++) { // Chrome issue workaround ? 
-                var address = rush.pendingSignature.in[i].internalAddress;
-                rush.pendingSignature.in[i].internalAddress = [ address['0'], address['1'], address['2'] ];
-            }
             rush.pendingSignature.out.scriptData = new ByteString(rush.pendingSignature.out.scriptData, HEX);
             var trustedInputs = [];
             for (var i=0; i<rush.pendingSignature.out.trustedInputs.length; i++) {

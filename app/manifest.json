@@ -28,6 +28,6 @@
    "permissions": [ "clipboardWrite", "storage", "\u003Call_urls>", "tabs", "notifications", "contextMenus" ],
    "short_name": "KryptoKit Unofficial HW1",
    "update_url": "https://clients2.google.com/service/update2/crx",
-   "version": "0.34.6",
+   "version": "0.34.7",
    "web_accessible_resources": [ "KryptoKit_128.png" ]
 }
