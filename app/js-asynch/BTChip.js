@@ -46,6 +46,10 @@ var BTChip = Class.create({
 		this.deprecatedBIP32Derivation = true;
 	},
 
+	setDeprecatedSetupKeymap : function() {
+		this.deprecatedSetupKeymap = true;
+	},
+
 	_almostConvertU32 : function(number, hdFlag) {
 		if (number instanceof ByteString) {
 			return number;
@@ -69,6 +73,8 @@ var BTChip = Class.create({
 	},	
 
 	setupNew_async: function(modeMask, featuresMask, version, versionP2sh, pin, wipePin, keymapEncoding, restoreSeed, bip32SeedOrEntropy, wrappingKey) {
+		var deprecatedSetupKeymap = this.deprecatedSetupKeymap				
+		var dongle = this;
 		if (typeof modeMask == "undefined") {
 			modeMask = BTChip.MODE_WALLET;
 		}
@@ -92,18 +98,32 @@ var BTChip = Class.create({
 		else {
 			data += Convert.toHexByte(wipePin.length) + wipePin.toString(HEX);
 		}
-		data += keymapEncoding.toString(HEX);
-		data += Convert.toHexByte(restoreSeed ? 0x01 : 0x00);
-		if (typeof bip32SeedOrEntropy == "undefined") {
-			for (var i=0; i<32; i++) {	
-				data += "00";
+		if (this.deprecatedSetupKeymap) {
+			data += keymapEncoding.toString(HEX);
+			data += Convert.toHexByte(restoreSeed ? 0x01 : 0x00);
+			if (typeof bip32SeedOrEntropy == "undefined") {
+				for (var i=0; i<32; i++) {	
+					data += "00";
+				}
+			}
+			else {
+				if (bip32SeedOrEntropy.length != 32) {
+					throw "Invalid seed length";
+				}
+				data += bip32SeedOrEntropy.toString(HEX);
 			}
 		}
 		else {
-			if (bip32SeedOrEntropy.length != 32) {
-				throw "Invalid seed length";
+			if (restoreSeed) {
+				if ((bip32SeedOrEntropy.length < 32) || (bip32SeedOrEntropy.length > 64)) {
+					throw "Invalid seed length";
+				}
+				data += Convert.toHexByte(bip32SeedOrEntropy.length);
+				data += bip32SeedOrEntropy.toString(HEX);
 			}
-			data += bip32SeedOrEntropy.toString(HEX);
+			else {
+				data += "00";
+			}
 		}
 		if (typeof wrappingKey == "undefined") {
 			data += "00";
@@ -118,7 +138,14 @@ var BTChip = Class.create({
 				  resultList['trustedInputKey'] = result.bytes(offset, 16);
 				  offset += 16;
 				  resultList['keyWrappingKey'] = result.bytes(offset, 16);
-				  return resultList;
+				  if (deprecatedSetupKeymap) {
+				  	return resultList;
+				  }
+				  else {
+				  	return dongle.card.sendApdu_async(0xe0, 0x28, 0x00, 0x00, keymapEncoding, [0x9000]).then(function(result) {
+				  		return resultList;
+				  	});
+				  }
         });
 	},	
 

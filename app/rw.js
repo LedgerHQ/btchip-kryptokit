@@ -416,6 +416,10 @@ rush = window.rush = {
                 console.log("Using old BIP32 derivation");
                 rush.dongle.setDeprecatedBIP32Derivation();
             }            
+            if ((firmwareVersion.byteAt(1) == 0x01) && (firmwareVersion.byteAt(2) == 0x04) && (firmwareVersion.byteAt(3) < 8)) {
+                console.log("Using old setup keymap encoding");
+                rush.dongle.setDeprecatedSetupKeymap();
+            }                        
             console.log("Got firmware version " + firmwareVersion.toString(HEX));
             rush.dongle.setCompressedPublicKeys(result['compressedPublicKeys']);
             rush.firmwareVersion = firmwareVersion;
@@ -1514,15 +1518,30 @@ rush = window.rush = {
             setMsg("Invalid PIN code");
             return;
         }
-        if ((restoreSeed.length != 0) && (restoreSeed.length != 64)) {
-            setMsg("Invalid seed");
-            return;
-        }
-        if (restoreSeed.length != 0) {            
-            if (new ByteString(restoreSeed, HEX).length != 32) {
+        if (rush.dongle.deprecatedSetupKeymap) {
+            if ((restoreSeed.length != 0) && (restoreSeed.length != 64)) {
                 setMsg("Invalid seed");
-                return;                
+                return;
             }
+            if (restoreSeed.length != 0) {            
+                if (new ByteString(restoreSeed, HEX).length != 32) {
+                    setMsg("Invalid seed");
+                    return;                
+                }
+            }
+        }
+        else {
+            if ((restoreSeed.length != 0) && (restoreSeed.length < 64)) {
+                setMsg("Invalid seed");
+                return;
+            }
+            if (restoreSeed.length != 0) {            
+                var seed = new ByteString(restoreSeed, HEX);
+                if ((seed.length < 32) || (seed.length > 64)) {
+                    setMsg("Invalid seed");
+                    return;                
+                }
+            }            
         }
         setMsg("Setup in progress ... please wait");
         var keymaps = [];
