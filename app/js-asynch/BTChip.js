@@ -367,11 +367,9 @@ var BTChip = Class.create({
                   // iteration (eachSeries) ended
                   // TODO notify progress
                   // deferred.notify("input");
-                  processScriptBlocks(input['script']).then(function(result) {
-                	currentObject.getTrustedInputRaw_async(false, undefined, input['sequence']).then(function (result) {  	
+                  processScriptBlocks(input['script'].concat(input['sequence'])).then(function (result) {  	
                 		finishedCallback();
                 	}).fail(function(err) { deferred.reject(err); });
-                  }).fail(function(err) { deferred.reject(err); });
                 }).fail(function (err) { deferred.reject(err); });
               },
               function(finished) {
