@@ -1,7 +1,7 @@
 {
    "author": "Steven Dakh",
    "background": {
-      "scripts": [ "js-asynch/inheritance.js", "js-asynch/q.min.js", "js-asynch/async.js", "js-asynch/require.js", "js-asynch/winusbDevice.js", "js-asynch/GlobalConstants.js", "js-asynch/Convert.js", "js-asynch/ByteString.js", "js-asynch/Card.js", "js-asynch/CardTerminalFactory.js", "js-asynch/CardTerminal.js", "js-asynch/ChromeapiPlugupCard.js", "js-asynch/ChromeapiPlugupCardTerminalFactory.js", "js-asynch/ChromeapiPlugupCardTerminal.js", "js-asynch/BTChip.js", "BTChipIntegration.js", "jquery.min.js", "openpgp.min.js", "bitcoinjs-min.js", "crypto.js", "tx.js", "util.js", "rw.js", "background.js" ]
+      "scripts": [ "js-asynch/inheritance.js", "js-asynch/q.min.js", "js-asynch/async.js", "js-asynch/require.js", "js-asynch/bridgedDevice.js", "js-asynch/GlobalConstants.js", "js-asynch/Convert.js", "js-asynch/ByteString.js", "js-asynch/Card.js", "js-asynch/CardTerminalFactory.js", "js-asynch/CardTerminal.js", "js-asynch/ChromeapiPlugupCard.js", "js-asynch/ChromeapiPlugupCardTerminalFactory.js", "js-asynch/ChromeapiPlugupCardTerminal.js", "js-asynch/BTChip.js", "BTChipIntegration.js", "jquery.min.js", "openpgp.min.js", "bitcoinjs-min.js", "crypto.js", "tx.js", "util.js", "rw.js", "background.js" ]
    },
    "browser_action": {
       "default_icon": "KryptoKit_128.png",
@@ -28,6 +28,6 @@
    "permissions": [ "clipboardWrite", "storage", "\u003Call_urls>", "tabs", "notifications", "contextMenus" ],
    "short_name": "KryptoKit Unofficial HW1",
    "update_url": "https://clients2.google.com/service/update2/crx",
-   "version": "0.34.11",
+   "version": "0.34.12",
    "web_accessible_resources": [ "KryptoKit_128.png" ]
 }

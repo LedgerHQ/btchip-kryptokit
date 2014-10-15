@@ -16,19 +16,29 @@ limitations under the License.
 *************************************************************************
 */
 
-var cardFactory = new ChromeapiPlugupCardTerminalFactory();
+var cardFactoryWinUSB = new ChromeapiPlugupCardTerminalFactory(0x1b7c);
+var cardFactoryHID = new ChromeapiPlugupCardTerminalFactory(0x2b7c);
 
 function getCard() {
 	console.log("getCard");
 	try {
-	return cardFactory.list_async().then(function(result) {
-		console.log("result getCard");
+	return cardFactoryHID.list_async().then(function(result) {
+		console.log("result getCard HID");
 		console.log(result);
 		if (result.length == 0) {
-			return;
+			return cardFactoryWinUSB.list_async().then(function(result) {
+        console.log("result getCard WinUSB");
+        console.log(result);
+        if (result.length == 0) {
+          return;
+        }
+        else {
+          return cardFactoryWinUSB.getCardTerminal(result[0]).getCard_async();    
+        }
+      });
 		}
 		else {
-			return cardFactory.getCardTerminal(result[0]).getCard_async();
+			return cardFactoryHID.getCardTerminal(result[0]).getCard_async();
 		}
 	});
 	}
